@@ -1,16 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Revit2Gltf.glTF
+namespace Revit2Gltf.glTF;
+
+public class GltfSettings
 {
-    internal class glTFSetting
-    {
-        public bool useDraco { get; set; } = false;
-        public string fileName { get; set; }
-
-        public bool exportProperty { get; set; } = false;
-    }
+    public bool UseDraco { get; set; }
+    public string? FileName { get; set; }
+    public bool ExportProperty { get; set; }
 }
