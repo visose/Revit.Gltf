@@ -1,22 +1,22 @@
 #pragma warning disable IDE1006 // Naming Styles
 using Newtonsoft.Json;
 
-namespace Revit2Gltf.glTF;
+namespace RevitGltf;
 
-class GLTF
+class Gltf
 {
-    public glTFVersion asset { get; } = new();
-    public List<glTFScene> scenes { get; } = new();
-    public List<glTFNode> nodes { get; } = new();
-    public List<glTFMesh> meshes { get; } = new();
-    public List<glTFBufferView> bufferViews { get; } = new();
-    public List<glTFAccessor> accessors { get; } = new();
-    public List<glTFBuffer> buffers { get; } = new();
-    public List<glTFMaterial> materials { get; } = new();
-    public List<glTFCameras>? cameras { get; set; }
-    public List<glTFImage>? images { get; set; }
-    public List<glTFTexture>? textures { get; set; }
-    public List<glTFSampler>? samplers { get; set; }
+    public Version asset { get; } = new();
+    public List<Scene> scenes { get; } = new();
+    public List<Node> nodes { get; } = new();
+    public List<Mesh> meshes { get; } = new();
+    public List<BufferView> bufferViews { get; } = new();
+    public List<Accessor> accessors { get; } = new();
+    public List<Buffer> buffers { get; } = new();
+    public List<Material> materials { get; } = new();
+    public List<Camera>? cameras { get; set; }
+    public List<Image>? images { get; set; }
+    public List<Texture>? textures { get; set; }
+    public List<Sampler>? samplers { get; set; }
     public List<string>? extensionsRequired { get; set; }
     public List<string>? extensionsUsed { get; set; }
 
@@ -31,7 +31,7 @@ class GLTF
     }
 }
 
-class GLB
+class Glb
 {
     public const uint Magic = 0x46546C67;
     public const uint Version = 2;
@@ -41,7 +41,7 @@ class GLB
     public const uint ChunkFormatBin = 0x004E4942;
 }
 
-class glTFVersion
+class Version
 {
     public readonly string generator = "Exported using: https://github.com/visose/Revit.Gltf";
     public readonly string version = "2.0";
@@ -49,12 +49,12 @@ class glTFVersion
     public Dictionary<string, object>? extensions { get; set; }
 }
 
-class glTFScene
+class Scene
 {
     public List<int> nodes = new();
 }
 
-class glTFNode
+class Node
 {
     public string? name { get; set; }
     public int? mesh { get; set; }
@@ -67,30 +67,30 @@ class glTFNode
     public Dictionary<string, object>? extras { get; set; }
 }
 
-class glTFParameterGroup
+class ParameterGroup
 {
     public string? GroupName { get; set; }
-    public List<glTFParameter> Parameters { get; set; } = new();
+    public List<Parameter> Parameters { get; set; } = new();
 }
 
-class glTFParameter
+class Parameter
 {
     public string? value { get; set; }
     public string? name { get; set; }
 }
 
-class glTFMesh
+class Mesh
 {
-    public List<glTFMeshPrimitive>? primitives { get; set; }
+    public List<MeshPrimitive>? primitives { get; set; }
 }
 
-class glTFMeshPrimitive
+class MeshPrimitive
 {
-    public glTFAttribute attributes { get; set; } = new();
+    public Attribute attributes { get; set; } = new();
     public int indices { get; set; }
     public int? material { get; set; }
     public ModeEnum mode { get; set; } = ModeEnum.TRIANGLES;
-    public glTFPrimitiveExtensions? extensions { get; set; }
+    public PrimitiveExtensions? extensions { get; set; }
 }
 
 enum ModeEnum
@@ -104,7 +104,7 @@ enum ModeEnum
     TRIANGLE_FAN = 6
 }
 
-class glTFAttribute
+class Attribute
 {
     public int? POSITION { get; set; }
     public int? NORMAL { get; set; }
@@ -112,25 +112,25 @@ class glTFAttribute
     public int? _BATCHID { get; set; }
 }
 
-class glTFPrimitiveExtensions
+class PrimitiveExtensions
 {
-    public glTFDracoMesh KHR_draco_mesh_compression { get; set; } = new();
+    public DracoMesh KHR_draco_mesh_compression { get; set; } = new();
 }
 
-class glTFDracoMesh
+class DracoMesh
 {
     public int? bufferView { get; set; }
-    public glTFAttribute attributes { get; set; } = new();
+    public Attribute attributes { get; set; } = new();
 }
 
-class glTFBuffer
+class Buffer
 {
     public string? uri { get; set; }
     public int byteLength { get; set; }
 }
 
 [JsonObject(MemberSerialization.OptOut)]
-class glTFBufferView
+class BufferView
 {
     public string? name { get; set; }
     public int buffer { get; set; }
@@ -149,7 +149,7 @@ enum Targets
     ELEMENT_ARRAY_BUFFER = 34963 // 代表顶点索引数据
 }
 
-class glTFAccessor
+class Accessor
 {
     public string? name { get; set; }
     public int? bufferView { get; set; }
@@ -178,10 +178,10 @@ enum ComponentType
     FLOAT = 5126
 }
 
-class glTFMaterial
+class Material
 {
     public string? name { get; set; }
-    public glTFPBR? pbrMetallicRoughness { get; set; }
+    public Pbr? pbrMetallicRoughness { get; set; }
     public string? alphaMode { get; set; }
     public bool? doubleSided { get; set; }
 
@@ -189,9 +189,9 @@ class glTFMaterial
     public int index { get; set; }
 }
 
-class glTFPBR
+class Pbr
 {
-    public glTFbaseColorTexture? baseColorTexture { get; set; }
+    public BaseColorTexture? baseColorTexture { get; set; }
     public List<float>? baseColorFactor { get; set; }
     //Metalness, ranging from 0 (non-metal) to 1 (metal)
     public float? metallicFactor { get; set; }
@@ -199,18 +199,18 @@ class glTFPBR
     public float? roughnessFactor { get; set; }
 }
 
-class glTFbaseColorTexture
+class BaseColorTexture
 {
     public int? index { get; set; }
 }
 
-class glTFTexture
+class Texture
 {
     public int? source { get; set; }
     public int? sampler { get; set; }
 }
 
-class glTFImage
+class Image
 {
 
     public string? uri { get; set; }
@@ -222,7 +222,7 @@ class glTFImage
     public string? name { get; set; }
 }
 
-class glTFSampler
+class Sampler
 {
     public float magFilter { get; set; }
     public float minFilter { get; set; }
@@ -230,11 +230,11 @@ class glTFSampler
     public float wrapT { get; set; }
 }
 
-class glTFCameras
+class Camera
 {
     public string? type { get; set; }
-    public glTFPerspectiveCamera? perspective { get; set; }
-    public glTFOrthographicCamera? orthographic { get; set; }
+    public PerspectiveCamera? perspective { get; set; }
+    public OrthographicCamera? orthographic { get; set; }
 }
 
 class CameraType
@@ -243,7 +243,7 @@ class CameraType
     public const string orthographic = "orthographic";
 }
 
-class glTFPerspectiveCamera
+class PerspectiveCamera
 {
     public float aspectRatio { get; set; }
     public float yfov { get; set; }
@@ -251,7 +251,7 @@ class glTFPerspectiveCamera
     public float znear { get; set; }
 }
 
-class glTFOrthographicCamera
+class OrthographicCamera
 {
     public float xmag { get; set; }
     public float ymag { get; set; }
@@ -259,7 +259,7 @@ class glTFOrthographicCamera
     public float znear { get; set; }
 }
 
-class glTFBinaryData
+class BinaryData
 {
     public List<float> vertexBuffer { get; set; } = new();
     public List<float> normalBuffer { get; set; } = new();

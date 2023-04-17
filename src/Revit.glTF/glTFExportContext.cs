@@ -4,11 +4,11 @@ using Newtonsoft.Json.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Visual;
 
-namespace Revit2Gltf.glTF;
+namespace RevitGltf;
 
 class DracoData
 {
-    public List<glTFBufferView> BufferViews { get; } = new();
+    public List<BufferView> BufferViews { get; } = new();
     public List<Task> Tasks { get; } = new();
 }
 
@@ -17,7 +17,7 @@ class ElementData
     public required Element Element { get; init; }
     public string? SymbolId { get; set; }
     public string? MaterialName { get; set; }
-    public Dictionary<string, glTFBinaryData> MapBinaryData { get; } = new();
+    public Dictionary<string, BinaryData> MapBinaryData { get; } = new();
     public List<int> InstanceNodes { get; } = new();
 }
 
@@ -26,16 +26,16 @@ class GltfExportContext : IExportContext
     public byte[]? Data { get; private set; }
 
     readonly View3D _view;
-    readonly GltfSettings _settings;
+    readonly Settings _settings;
     readonly HashSet<ElementId>? _elements;
     readonly string _texturesFolder;
 
     readonly Stack<Document> _documentStack = new();
     readonly Stack<Transform> _transformStack = new();
 
-    readonly GLTF _glTF = new();
-    readonly List<glTFBinaryData> _allBinaryDatas = new();
-    readonly Dictionary<string, glTFMaterial> _mapMaterial = new();
+    readonly Gltf _glTF = new();
+    readonly List<BinaryData> _allBinaryDatas = new();
+    readonly Dictionary<string, Material> _mapMaterial = new();
     readonly Dictionary<string, int> _mapSymbolId = new();
 
     readonly DracoData? _dracoData;
@@ -44,7 +44,7 @@ class GltfExportContext : IExportContext
     Document Doc => _documentStack.Peek();
     Transform CurrentTransform => _transformStack.Peek();
 
-    public GltfExportContext(View3D view, GltfSettings settings)
+    public GltfExportContext(View3D view, Settings settings)
     {
         _view = view;
         _settings = settings;
@@ -61,14 +61,14 @@ class GltfExportContext : IExportContext
             _dracoData = new();
         }
 
-        glTFScene scene = new()
+        Scene scene = new()
         {
             nodes = new() { 0 }
         };
 
         _glTF.scenes.Add(scene);
 
-        glTFNode root = new()
+        Node root = new()
         {
             name = "root",
             children = new()
@@ -105,7 +105,7 @@ class GltfExportContext : IExportContext
 
                     }
                     // release native memory
-                    GltfDraco.deleteDracoData(data);
+                    Draco.deleteDracoData(data);
 
                     int byteOffset = 0;
                     var bufferViews = _dracoData.BufferViews;
@@ -133,7 +133,7 @@ class GltfExportContext : IExportContext
                         image.bufferView = _glTF.bufferViews.Count;
                         var bytes = File.ReadAllBytes(image.uri);
                         var byteOffset = _glTF.bufferViews[^1].byteLength + _glTF.bufferViews[^1].byteOffset;
-                        var imageView = GltfUtil.CreateBufferView(0, byteOffset, bytes.Length);
+                        var imageView = Util.CreateBufferView(0, byteOffset, bytes.Length);
                         image.uri = null;
                         writer.Write(bytes);
                         _glTF.bufferViews.Add(imageView);
@@ -176,7 +176,7 @@ class GltfExportContext : IExportContext
 
                         var bytes = File.ReadAllBytes(image.uri);
                         var byteOffset = _glTF.bufferViews[^1].byteLength + _glTF.bufferViews[^1].byteOffset;
-                        var imageView = GltfUtil.CreateBufferView(0, byteOffset, bytes.Length);
+                        var imageView = Util.CreateBufferView(0, byteOffset, bytes.Length);
 
                         image.uri = null;
 
@@ -189,7 +189,7 @@ class GltfExportContext : IExportContext
             }
         }
 
-        glTFBuffer newbuffer = new()
+        Buffer newbuffer = new()
         {
             byteLength = 0
         };
@@ -213,13 +213,13 @@ class GltfExportContext : IExportContext
             using MemoryStream glbStream = new();
             using (BinaryWriter writer = new(glbStream))
             {
-                writer.Write(GLB.Magic);
-                writer.Write(GLB.Version);
+                writer.Write(Glb.Magic);
+                writer.Write(Glb.Version);
                 var chunksPosition = writer.BaseStream.Position;
                 writer.Write(0U);
                 var jsonChunkPosition = writer.BaseStream.Position;
                 writer.Write(0U);
-                writer.Write(GLB.ChunkFormatJson);
+                writer.Write(Glb.ChunkFormatJson);
 
                 using (var streamWriter = new StreamWriter(writer.BaseStream, new UTF8Encoding(false, true), 1024, true))
                 using (var jsonTextWriter = new JsonTextWriter(streamWriter))
@@ -228,20 +228,20 @@ class GltfExportContext : IExportContext
                     json.WriteTo(jsonTextWriter);
                 }
 
-                GltfUtil.Align(writer.BaseStream, 0x20);
-                var jsonChunkLength = checked((uint)(writer.BaseStream.Length - jsonChunkPosition)) - GLB.ChunkHeaderLength;
+                Util.Align(writer.BaseStream, 0x20);
+                var jsonChunkLength = checked((uint)(writer.BaseStream.Length - jsonChunkPosition)) - Glb.ChunkHeaderLength;
                 writer.BaseStream.Seek(jsonChunkPosition, SeekOrigin.Begin);
                 writer.Write(jsonChunkLength);
                 byte[] data = memoryStream.ToArray();
                 writer.BaseStream.Seek(0, SeekOrigin.End);
                 var binChunkPosition = writer.BaseStream.Position;
                 writer.Write(0);
-                writer.Write(GLB.ChunkFormatBin);
+                writer.Write(Glb.ChunkFormatBin);
 
                 writer.Write(data);
 
-                GltfUtil.Align(writer.BaseStream, 0x20);
-                var binChunkLength = checked((uint)(writer.BaseStream.Length - binChunkPosition)) - GLB.ChunkHeaderLength;
+                Util.Align(writer.BaseStream, 0x20);
+                var binChunkLength = checked((uint)(writer.BaseStream.Length - binChunkPosition)) - Glb.ChunkHeaderLength;
                 writer.BaseStream.Seek(binChunkPosition, SeekOrigin.Begin);
                 writer.Write(binChunkLength);
                 var length = checked((uint)writer.BaseStream.Length);
@@ -263,14 +263,14 @@ class GltfExportContext : IExportContext
         var cameraInfo = node.GetCameraInfo();
         var aspect = 1.0;
 
-        glTFCameras camera;
+        Camera camera;
 
         if (cameraInfo.IsPerspective)
         {
             camera = new()
             {
                 type = CameraType.perspective,
-                perspective = new glTFPerspectiveCamera
+                perspective = new PerspectiveCamera
                 {
                     aspectRatio = (float)aspect,
                     yfov = 1.0f,
@@ -286,7 +286,7 @@ class GltfExportContext : IExportContext
             camera = new()
             {
                 type = CameraType.orthographic,
-                orthographic = new glTFOrthographicCamera
+                orthographic = new OrthographicCamera
                 {
                     xmag = mag,
                     ymag = mag,
@@ -299,11 +299,11 @@ class GltfExportContext : IExportContext
         var orientation = _view.GetOrientation();
         var position = orientation.EyePosition;
         var yAxis = orientation.ForwardDirection.CrossProduct(orientation.UpDirection);
-        var rotation = GltfUtil.MakeQuaternion(yAxis, orientation.UpDirection);
+        var rotation = Util.MakeQuaternion(yAxis, orientation.UpDirection);
         var targetDistance = (cameraInfo.NearDistance + cameraInfo.FarDistance) * 0.5;
         var target = position.Add(orientation.ForwardDirection * targetDistance);
 
-        glTFNode cameraNode = new()
+        Node cameraNode = new()
         {
             name = "Revit camera",
             camera = 0,
@@ -373,7 +373,7 @@ class GltfExportContext : IExportContext
 
         if (_mapSymbolId.TryGetValue(symbol.UniqueId, out int value))
         {
-            glTFNode gltfNode = new()
+            Node gltfNode = new()
             {
                 name = _elementData.Element.Name
             };
@@ -432,7 +432,7 @@ class GltfExportContext : IExportContext
 
             if (!_mapMaterial.ContainsKey(material.Name))
             {
-                glTFPBR pbr = new()
+                Pbr pbr = new()
                 {
                     metallicFactor = 0f,
                     //roughnessFactor = 1 - node.Smoothness / 100;
@@ -440,7 +440,7 @@ class GltfExportContext : IExportContext
                     baseColorFactor = color is null ? null : new() { color.Red / 255f, color.Green / 255f, color.Blue / 255f, alpha }
                 };
 
-                glTFMaterial gl_mat = new()
+                Material gl_mat = new()
                 {
                     name = materialName,
                     index = _glTF.materials.Count,
@@ -459,7 +459,7 @@ class GltfExportContext : IExportContext
                 if (_settings.ExportTextures)
                 {
                     Asset currentAsset = node.HasOverriddenAppearance ? node.GetAppearanceOverride() : node.GetAppearance();
-                    var assetPropertyString = GltfUtil.ReadAssetProperty(currentAsset);
+                    var assetPropertyString = Util.ReadAssetProperty(currentAsset);
 
                     if (assetPropertyString is not null)
                     {
@@ -474,14 +474,14 @@ class GltfExportContext : IExportContext
 
                         pbr.baseColorFactor = null;
 
-                        glTFbaseColorTexture bct = new()
+                        BaseColorTexture bct = new()
                         {
                             index = _glTF.textures.Count
                         };
 
                         pbr.baseColorTexture = bct;
 
-                        glTFTexture texture = new()
+                        Texture texture = new()
                         {
                             source = _glTF.images.Count,
                             sampler = 0
@@ -489,10 +489,10 @@ class GltfExportContext : IExportContext
 
                         _glTF.textures.Add(texture);
 
-                        glTFImage image = new()
+                        Image image = new()
                         {
                             name = Path.GetFileNameWithoutExtension(texturePath),
-                            mimeType = GltfUtil.FromFileExtension(texturePath),
+                            mimeType = Util.FromFileExtension(texturePath),
                             uri = texturePath
                         };
 
@@ -500,7 +500,7 @@ class GltfExportContext : IExportContext
 
                         if (_glTF.samplers is null)
                         {
-                            glTFSampler sampler = new()
+                            Sampler sampler = new()
                             {
                                 magFilter = 9729,
                                 minFilter = 9987,
@@ -520,7 +520,7 @@ class GltfExportContext : IExportContext
 
             if (!_mapMaterial.ContainsKey(materialName))
             {
-                glTFMaterial gl_mat = new()
+                Material gl_mat = new()
                 {
                     name = materialName,
                     index = _glTF.materials.Count
@@ -533,7 +533,7 @@ class GltfExportContext : IExportContext
                     alpha = 1 - alpha;
                 }
 
-                glTFPBR pbr = new()
+                Pbr pbr = new()
                 {
                     baseColorFactor = new() { node.Color.Red / 255f, node.Color.Green / 255f, node.Color.Blue / 255f, alpha },
                     metallicFactor = 0f,
@@ -630,7 +630,7 @@ class GltfExportContext : IExportContext
         else if (instanceNodes.Count > 0)
         {
             var e = Doc.GetElement(elementId);
-            glTFNode node = new()
+            Node node = new()
             {
                 name = e.Name
             };
@@ -646,7 +646,7 @@ class GltfExportContext : IExportContext
             };
 
             if (_settings.ExportParameters)
-                node.extras.Add("Parameters", GltfUtil.GetParameter(e));
+                node.extras.Add("Parameters", Util.GetParameter(e));
         }
     }
 
@@ -656,7 +656,7 @@ class GltfExportContext : IExportContext
         {
             var e = Doc.GetElement(elementId);
             var meshID = _glTF.meshes.Count;
-            glTFNode node = new()
+            Node node = new()
             {
                 name = e.Name,
                 mesh = meshID
@@ -684,12 +684,12 @@ class GltfExportContext : IExportContext
                 };
 
                 if (_settings.ExportParameters)
-                    node.extras.Add("Parameters", GltfUtil.GetParameter(e));
+                    node.extras.Add("Parameters", Util.GetParameter(e));
 
                 _glTF.nodes[0].children?.Add(_glTF.nodes.Count - 1);
             }
 
-            glTFMesh mesh = new();
+            Mesh mesh = new();
             _glTF.meshes.Add(mesh);
             mesh.primitives = new();
 
@@ -699,7 +699,7 @@ class GltfExportContext : IExportContext
 
                 if (isInstance && _settings.BoxInstances)
                 {
-                    GltfUtil.CreateBox(bufferData.vertexBuffer, out var vertices, out var faces);
+                    Util.CreateBox(bufferData.vertexBuffer, out var vertices, out var faces);
                     bufferData.vertexBuffer.Clear();
                     bufferData.vertexBuffer.AddRange(vertices);
                     bufferData.indexBuffer.Clear();
@@ -709,7 +709,7 @@ class GltfExportContext : IExportContext
                     bufferData.normalBuffer.Clear();
                 }
 
-                glTFMeshPrimitive primitive = new()
+                MeshPrimitive primitive = new()
                 {
                     material = _mapMaterial[key].index
                 };
@@ -718,7 +718,7 @@ class GltfExportContext : IExportContext
 
                 if (bufferData.indexBuffer.Count > 0)
                 {
-                    GltfUtil.AddIndexsBufferViewAndAccessor(_glTF, bufferData);
+                    Util.AddIndexsBufferViewAndAccessor(_glTF, bufferData);
                     primitive.indices = _glTF.accessors.Count - 1;
                 }
 
@@ -751,9 +751,9 @@ class GltfExportContext : IExportContext
                     dracoPrimitive.attributes.TEXCOORD_0 = 2;
                     int byteOffset = 0;
                     int byteLength = 0;
-                    var dracoBufferView = GltfUtil.CreateBufferView(0, byteOffset, byteLength);
+                    var dracoBufferView = Util.CreateBufferView(0, byteOffset, byteLength);
                     bufferViews.Add(dracoBufferView);
-                    _dracoData.Tasks.Add(Task.Run(() => GltfDraco.Compression(bufferData)));
+                    _dracoData.Tasks.Add(Task.Run(() => Draco.Compression(bufferData)));
                 }
 
                 _allBinaryDatas.Add(bufferData);

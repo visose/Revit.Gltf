@@ -1,9 +1,9 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Visual;
 
-namespace Revit2Gltf.glTF;
+namespace RevitGltf;
 
-static class GltfUtil
+static class Util
 {
     const float _scale = 0.3048f;
 
@@ -97,7 +97,7 @@ static class GltfUtil
         };
     }
 
-    public static void AddNode(this GLTF gltf, glTFNode node)
+    public static void AddNode(this Gltf gltf, Node node)
     {
         gltf.nodes.Add(node);
         int count = gltf.nodes.Count;
@@ -106,7 +106,7 @@ static class GltfUtil
             gltf.nodes[0].children?.Add(gltf.nodes.Count - 1);
     }
 
-    public static void AddVec3BufferViewAndAccessor(this GLTF gltf, glTFBinaryData bufferData)
+    public static void AddVec3BufferViewAndAccessor(this Gltf gltf, BinaryData bufferData)
     {
         var v3ds = bufferData.vertexBuffer;
         var byteOffset = 0;
@@ -125,7 +125,7 @@ static class GltfUtil
         gltf.accessors.Add(vecAccessor);
     }
 
-    public static void AddNormalBufferViewAndAccessor(this GLTF gltf, glTFBinaryData bufferData)
+    public static void AddNormalBufferViewAndAccessor(this Gltf gltf, BinaryData bufferData)
     {
         var v3ds = bufferData.normalBuffer;
         var byteOffset = 0;
@@ -141,7 +141,7 @@ static class GltfUtil
         gltf.accessors.Add(vecAccessor);
     }
 
-    public static void AddIndexsBufferViewAndAccessor(this GLTF gltf, glTFBinaryData bufferData)
+    public static void AddIndexsBufferViewAndAccessor(this Gltf gltf, BinaryData bufferData)
     {
         var byteOffset = 0;
 
@@ -149,8 +149,8 @@ static class GltfUtil
             byteOffset = gltf.bufferViews[^1].byteLength + gltf.bufferViews[^1].byteOffset;
 
         var bufferIndex = 0;
-        glTFBufferView faceView;
-        glTFAccessor faceAccessor;
+        BufferView faceView;
+        Accessor faceAccessor;
         var length = bufferData.indexBuffer.Count;
 
         if (bufferData.indexMax > 65535)
@@ -178,7 +178,7 @@ static class GltfUtil
         gltf.accessors.Add(faceAccessor);
     }
 
-    public static void AddUvBufferViewAndAccessor(this GLTF gltf, glTFBinaryData bufferData)
+    public static void AddUvBufferViewAndAccessor(this Gltf gltf, BinaryData bufferData)
     {
         var uvs = bufferData.uvBuffer;
         var byteOffset = 0;
@@ -194,7 +194,7 @@ static class GltfUtil
         gltf.accessors.Add(vecAccessor);
     }
 
-    public static glTFBufferView CreateBufferView(int bufferIndex, int byteOffset, int byteLength)
+    public static BufferView CreateBufferView(int bufferIndex, int byteOffset, int byteLength)
     {
         return new()
         {
@@ -204,7 +204,7 @@ static class GltfUtil
         };
     }
 
-    static glTFAccessor CreateAccessor(int bufferView, int byteOffset, ComponentType componentType, int count, string type)
+    static Accessor CreateAccessor(int bufferView, int byteOffset, ComponentType componentType, int count, string type)
     {
         return new()
         {
@@ -249,14 +249,14 @@ static class GltfUtil
         }
     }
 
-    public static List<glTFParameterGroup> GetParameter(Element element)
+    public static List<ParameterGroup> GetParameter(Element element)
     {
-        var parameterGroupMap = new Dictionary<string, glTFParameterGroup>();
-        IList<Parameter> parameters = element.GetOrderedParameters();
-        foreach (Parameter p in parameters)
+        var parameterGroupMap = new Dictionary<string, ParameterGroup>();
+        IList<Autodesk.Revit.DB.Parameter> parameters = element.GetOrderedParameters();
+        foreach (Autodesk.Revit.DB.Parameter p in parameters)
         {
             string GroupName = LabelUtils.GetLabelFor(p.Definition.ParameterGroup);
-            glTFParameter parameter = new()
+            Parameter parameter = new()
             {
                 name = p.Definition.Name
             };
@@ -269,7 +269,7 @@ static class GltfUtil
                 parameter.value = p.AsValueString();
             }
 
-            if (parameterGroupMap.TryGetValue(GroupName, out glTFParameterGroup propertySet))
+            if (parameterGroupMap.TryGetValue(GroupName, out ParameterGroup propertySet))
             {
                 propertySet.Parameters.Add(parameter);
             }

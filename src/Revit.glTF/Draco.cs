@@ -15,9 +15,9 @@
 
 using System.Runtime.InteropServices;
 
-namespace Revit2Gltf.glTF;
+namespace RevitGltf;
 
-class GltfDraco
+class Draco
 {
 
     [DllImport("DracoNet.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -46,7 +46,7 @@ class GltfDraco
         public int compression_level;
     };
 
-    public static void Compression(glTFBinaryData bufferData)
+    public static void Compression(BinaryData bufferData)
     {
         float[] positions = bufferData.vertexBuffer.ToArray();
         float[] uvs = bufferData.uvBuffer.ToArray();

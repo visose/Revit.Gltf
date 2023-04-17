@@ -1,11 +1,10 @@
 using Autodesk.Revit.DB;
-using Revit2Gltf.glTF;
 
-namespace Revit2Gltf;
+namespace RevitGltf;
 
 public static class Export
 {
-    public static byte[] ToBytes(View3D view, GltfSettings? settings = null)
+    public static byte[] ToBytes(View3D view, Settings? settings = null)
     {
         settings ??= new();
         var doc = view.Document;

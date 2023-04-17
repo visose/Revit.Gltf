@@ -1,7 +1,8 @@
 using Autodesk.Revit.DB;
-namespace Revit2Gltf;
 
-public class GltfSettings
+namespace RevitGltf;
+
+public class Settings
 {
     public bool UseDraco { get; set; }
     public bool ExportAsGLB { get; set; } = true;

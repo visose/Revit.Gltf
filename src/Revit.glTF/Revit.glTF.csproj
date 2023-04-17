@@ -11,6 +11,15 @@
     <RevitVersion>2023</RevitVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$(Configuration) == 'Release'">
+    <PackageId>Revit.glTF</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>cowboy1997; others</Authors>
+    <Description>Export glTF and glb from Revit</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
   <ItemGroup>
     <Using Remove="System.Net.Http" />
     <PackageReference Include="Revit.RevitApi.x64" Version="$(RevitVersion).0.0" ExcludeAssets="runtime" />
@@ -19,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="lib\DracoNet.dll" Link="DracoNet.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\lib\DracoNet.dll" Link="DracoNet.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="lib\net48\DracoNet.dll"/>
   </ItemGroup>
 
 </Project>
