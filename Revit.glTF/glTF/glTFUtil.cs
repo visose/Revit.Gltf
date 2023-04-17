@@ -5,14 +5,95 @@ namespace Revit2Gltf.glTF;
 
 static class GltfUtil
 {
-    public static float[] ToFloat(this Transform t)
+    const float _scale = 0.3048f;
+
+    public static void CreateBox(IList<float> points, out float[] vertices, out int[] faces)
     {
+        var min = (x: double.MaxValue, y: double.MaxValue, z: double.MaxValue);
+        var max = (x: double.MinValue, y: double.MinValue, z: double.MinValue);
+
+        for (int i = 0; i < points.Count; i += 3)
+        {
+            float x = points[i + 0];
+            float y = points[i + 1];
+            float z = points[i + 2];
+            min.x = Math.Min(min.x, x);
+            min.y = Math.Min(min.y, y);
+            min.z = Math.Min(min.z, z);
+            max.x = Math.Max(max.x, x);
+            max.y = Math.Max(max.y, y);
+            max.z = Math.Max(max.z, z);
+        }
+
+        BoundingBoxXYZ box = new()
+        {
+            Min = new(min.x, min.y, min.z),
+            Max = new(max.x, max.y, max.z)
+        };
+
+        CreateBox(box, out vertices, out faces);
+    }
+
+    static void CreateBox(BoundingBoxXYZ box, out float[] vertices, out int[] faces)
+    {
+        var (x0, y0, z0) = box.Min.Deconstruct();
+        var (x1, y1, z1) = box.Max.Deconstruct();
+
+        vertices = new float[8 * 3]
+        {
+            x0, y0, z1,
+            x1, y0, z1,
+            x1, y1, z1,
+            x0, y1, z1,
+            x0, y0, z0,
+            x1, y0, z0,
+            x1, y1, z0,
+            x0, y1, z0,
+        };
+
+        faces = new int[12 * 3]
+        {
+            0, 1, 2,
+            0, 2, 3,
+            4, 0, 3,
+            4, 3, 7,
+            1, 5, 6,
+            1, 6, 2,
+            4, 7, 6,
+            4, 6, 5,
+            3, 2, 6,
+            3, 6, 7,
+            4, 5, 1,
+            4, 1, 0,
+        };
+    }
+
+    public static (float X, float Y, float Z) ToYUp(this XYZ p)
+    {
+        return ((float)p.X * _scale, (float)p.Z * _scale, (float)-p.Y * _scale);
+    }
+
+    public static (float X, float Y, float Z) Deconstruct(this XYZ p)
+    {
+        return ((float)p.X, (float)p.Y, (float)p.Z);
+    }
+
+    public static float[] ToFloats(this XYZ p)
+    {
+        var (x, y, z) = p.ToYUp();
+        return new float[3] { x, y, z };
+    }
+
+    public static float[] ToFloats(this Transform t)
+    {
+        var (x, y, z) = t.Origin.ToYUp();
+
         return new float[16]
         {
-            (float)t.BasisX.X, (float)t.BasisX.Y, (float)t.BasisX.Z, 0,
-            (float)t.BasisY.X, (float)t.BasisY.Y, (float)t.BasisY.Z, 0,
-            (float)t.BasisZ.X, (float)t.BasisZ.Y, (float)t.BasisZ.Z, 0,
-            (float)t.Origin.X, (float)t.Origin.Y, (float)t.Origin.Z, 1,
+            (float)t.BasisX.X, (float)t.BasisX.Z, (float)-t.BasisX.Y, 0,
+            (float)t.BasisZ.X, (float)t.BasisZ.Z, (float)-t.BasisZ.Y, 0,
+            (float)-t.BasisY.X, (float)-t.BasisY.Z, (float)t.BasisY.Y, 0,
+            x, y, z, 1,
         };
     }
 

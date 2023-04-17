@@ -23,8 +23,6 @@ class ElementData
 
 class GltfExportContext : IExportContext
 {
-    const float _scale = 0.3048f;
-
     public byte[]? Data { get; private set; }
 
     readonly View3D _view;
@@ -46,11 +44,11 @@ class GltfExportContext : IExportContext
     Document Doc => _documentStack.Peek();
     Transform CurrentTransform => _transformStack.Peek();
 
-    public GltfExportContext(View3D view, GltfSettings settings, ICollection<ElementId>? elements)
+    public GltfExportContext(View3D view, GltfSettings settings)
     {
         _view = view;
         _settings = settings;
-        _elements = elements?.ToHashSet();
+        _elements = _settings.Elements?.ToHashSet();
         _texturesFolder = @"C:\Program Files (x86)\Common Files\Autodesk Shared\Materials\Textures\";
 
         _documentStack.Push(view.Document);
@@ -73,14 +71,7 @@ class GltfExportContext : IExportContext
         glTFNode root = new()
         {
             name = "root",
-            children = new(),
-            matrix = new float[16]
-            {
-                _scale, 0.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, -_scale, 0.0f,
-                0.0f, _scale, 0.0f, 0.0f,
-                0.0f, 0.0f, 0.0f, 1.0f
-            }
+            children = new()
         };
 
         _glTF.nodes.Add(root);
@@ -266,7 +257,65 @@ class GltfExportContext : IExportContext
 
     public RenderNodeAction OnViewBegin(ViewNode node)
     {
-        node.LevelOfDetail = _settings.Quality;
+        node.LevelOfDetail = _settings.BoxInstances ? 0 : _settings.Quality;
+
+        // add camera
+        var cameraInfo = node.GetCameraInfo();
+        var aspect = 1.0;
+
+        glTFCameras camera;
+
+        if (cameraInfo.IsPerspective)
+        {
+            camera = new()
+            {
+                type = CameraType.perspective,
+                perspective = new glTFPerspectiveCamera
+                {
+                    aspectRatio = (float)aspect,
+                    yfov = 1.0f,
+                    zfar = 1000.0f,
+                    znear = 0.1f
+                }
+            };
+        }
+        else
+        {
+            var mag = (float)(cameraInfo.VerticalExtent * 0.5);
+
+            camera = new()
+            {
+                type = CameraType.orthographic,
+                orthographic = new glTFOrthographicCamera
+                {
+                    xmag = mag,
+                    ymag = mag,
+                    zfar = 1000.0f,
+                    znear = 0.0f
+                }
+            };
+        }
+
+        var orientation = _view.GetOrientation();
+        var position = orientation.EyePosition;
+        var yAxis = orientation.ForwardDirection.CrossProduct(orientation.UpDirection);
+        var rotation = GltfUtil.MakeQuaternion(yAxis, orientation.UpDirection);
+        var targetDistance = (cameraInfo.NearDistance + cameraInfo.FarDistance) * 0.5;
+        var target = position.Add(orientation.ForwardDirection * targetDistance);
+
+        glTFNode cameraNode = new()
+        {
+            name = "Revit camera",
+            camera = 0,
+            translation = position.ToFloats(),
+            rotation = rotation,
+            extras = new() { { "target", target.ToFloats() } }
+        };
+
+        _glTF.AddNode(cameraNode);
+        _glTF.cameras ??= new();
+        _glTF.cameras.Add(camera);
+
         return RenderNodeAction.Proceed;
     }
 
@@ -331,7 +380,7 @@ class GltfExportContext : IExportContext
 
             _glTF.nodes.Add(gltfNode);
             _elementData.InstanceNodes.Add(_glTF.nodes.Count - 1);
-            gltfNode.matrix = CurrentTransform.ToFloat();
+            gltfNode.matrix = CurrentTransform.ToFloats();
             gltfNode.mesh = value;
         }
         else
@@ -516,19 +565,23 @@ class GltfExportContext : IExportContext
         var materialName = _elementData.MaterialName;
 
         var currentGeometry = mapBinaryData[materialName];
-        var index = currentGeometry.vertexBuffer.Count / 3;
+        var vertexBuffer = currentGeometry.vertexBuffer;
+        var uvBuffer = currentGeometry.uvBuffer;
+        var indexBuffer = currentGeometry.indexBuffer;
+        var index = vertexBuffer.Count / 3;
 
-        foreach (XYZ point in node.GetPoints())
+        foreach (var point in node.GetPoints())
         {
-            currentGeometry.vertexBuffer.Add((float)point.X);
-            currentGeometry.vertexBuffer.Add((float)point.Y);
-            currentGeometry.vertexBuffer.Add((float)point.Z);
+            var (x, y, z) = point.ToYUp();
+            vertexBuffer.Add(x);
+            vertexBuffer.Add(y);
+            vertexBuffer.Add(z);
         }
 
         foreach (UV uv in node.GetUVs())
         {
-            currentGeometry.uvBuffer.Add((float)uv.U * 0.5f);
-            currentGeometry.uvBuffer.Add((float)uv.V * 0.5f);
+            uvBuffer.Add((float)uv.U * 0.5f);
+            uvBuffer.Add((float)uv.V * 0.5f);
         }
 
         //foreach (XYZ normal in node.GetNormals())
@@ -543,9 +596,9 @@ class GltfExportContext : IExportContext
             var index1 = facet.V1 + index;
             var index2 = facet.V2 + index;
             var index3 = facet.V3 + index;
-            currentGeometry.indexBuffer.Add(index1);
-            currentGeometry.indexBuffer.Add(index2);
-            currentGeometry.indexBuffer.Add(index3);
+            indexBuffer.Add(index1);
+            indexBuffer.Add(index2);
+            indexBuffer.Add(index3);
 
             if (!currentGeometry.indexMax.HasValue)
                 currentGeometry.indexMax = 0;
@@ -614,7 +667,7 @@ class GltfExportContext : IExportContext
                 if (!_mapSymbolId.ContainsKey(element.SymbolId))
                     _mapSymbolId.Add(element.SymbolId, meshID);
 
-                node.matrix = CurrentTransform.ToFloat();
+                node.matrix = CurrentTransform.ToFloats();
             }
             _glTF.nodes.Add(node);
 
@@ -643,26 +696,44 @@ class GltfExportContext : IExportContext
             foreach (var key in element.MapBinaryData.Keys)
             {
                 var bufferData = element.MapBinaryData[key];
+
+                if (isInstance && _settings.BoxInstances)
+                {
+                    GltfUtil.CreateBox(bufferData.vertexBuffer, out var vertices, out var faces);
+                    bufferData.vertexBuffer.Clear();
+                    bufferData.vertexBuffer.AddRange(vertices);
+                    bufferData.indexBuffer.Clear();
+                    bufferData.indexBuffer.AddRange(faces);
+                    bufferData.indexMax = faces.Max();
+                    bufferData.uvBuffer.Clear();
+                    bufferData.normalBuffer.Clear();
+                }
+
                 glTFMeshPrimitive primitive = new()
                 {
                     material = _mapMaterial[key].index
                 };
+
                 mesh.primitives.Add(primitive);
+
                 if (bufferData.indexBuffer.Count > 0)
                 {
                     GltfUtil.AddIndexsBufferViewAndAccessor(_glTF, bufferData);
                     primitive.indices = _glTF.accessors.Count - 1;
                 }
+
                 if (bufferData.vertexBuffer.Count > 0)
                 {
                     _glTF.AddVec3BufferViewAndAccessor(bufferData);
                     primitive.attributes.POSITION = _glTF.accessors.Count - 1;
                 }
+
                 if (bufferData.normalBuffer.Count > 0)
                 {
                     _glTF.AddNormalBufferViewAndAccessor(bufferData);
                     primitive.attributes.NORMAL = _glTF.accessors.Count - 1;
                 }
+
                 if (bufferData.uvBuffer.Count > 0)
                 {
                     _glTF.AddUvBufferViewAndAccessor(bufferData);
@@ -690,41 +761,5 @@ class GltfExportContext : IExportContext
 
             element.MapBinaryData.Clear();
         }
-    }
-
-    void AddPerspectiveCamera(View3D view)
-    {
-        //add camera
-        ViewOrientation3D orientation = view.GetOrientation();
-        glTFCameras camera = new()
-        {
-            type = CameraType.perspective,
-            perspective = new glTFPerspectiveCamera
-            {
-                aspectRatio = 1.0f,
-                yfov = 0.7f,
-                zfar = 1000.0f,
-                znear = 0.01f
-            }
-        };
-
-        glTFNode cameraNode = new();
-        _glTF.AddNode(cameraNode);
-
-        cameraNode.camera = 0;
-        //camera position
-        cameraNode.translation = new float[]
-        {
-                (float)orientation.EyePosition.X,
-                (float)orientation.EyePosition.Y,
-                (float)orientation.EyePosition.Z
-        };
-        //camera direction
-        var n = orientation.ForwardDirection.CrossProduct(orientation.UpDirection);
-        cameraNode.rotation = GltfUtil.MakeQuaternion(n, orientation.UpDirection);
-        cameraNode.name = "revit_camera";
-
-        _glTF.cameras ??= new();
-        _glTF.cameras.Add(camera);
     }
 }

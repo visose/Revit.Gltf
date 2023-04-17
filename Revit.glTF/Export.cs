@@ -5,12 +5,12 @@ namespace Revit2Gltf;
 
 public static class Export
 {
-    public static byte[] ToBytes(View3D view, GltfSettings? settings = null, ICollection<ElementId>? elements = null)
+    public static byte[] ToBytes(View3D view, GltfSettings? settings = null)
     {
         settings ??= new();
         var doc = view.Document;
 
-        GltfExportContext context = new(view, settings, elements);
+        GltfExportContext context = new(view, settings);
         CustomExporter exporter = new(doc, context)
         {
             IncludeGeometricObjects = false,
