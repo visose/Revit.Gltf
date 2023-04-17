@@ -43,7 +43,7 @@ class GLB
 
 class glTFVersion
 {
-    public readonly string generator = "exportGLTF by:https://github.com/visose/Revit2GLTF";
+    public readonly string generator = "Exported using: https://github.com/visose/Revit.Gltf";
     public readonly string version = "2.0";
     public Dictionary<string, object>? extras { get; set; }
     public Dictionary<string, object>? extensions { get; set; }

@@ -74,7 +74,6 @@ char* dracoEncoder(float* positions, float* uvs, float* normals, int* indexs,
         }
     }
 
-
     for (int i = 0; i < num_obj_faces; ++i) {
         for (int j = 0; j < 3; ++j) {
             int index = 3 * i + j;
