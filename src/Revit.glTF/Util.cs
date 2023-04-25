@@ -249,45 +249,6 @@ static class Util
         }
     }
 
-    public static List<ParameterGroup> GetParameter(Element element)
-    {
-        var parameterGroupMap = new Dictionary<string, ParameterGroup>();
-        IList<Autodesk.Revit.DB.Parameter> parameters = element.GetOrderedParameters();
-        foreach (Autodesk.Revit.DB.Parameter p in parameters)
-        {
-            string GroupName = LabelUtils.GetLabelFor(p.Definition.ParameterGroup);
-            Parameter parameter = new()
-            {
-                name = p.Definition.Name
-            };
-            if (StorageType.String == p.StorageType)
-            {
-                parameter.value = p.AsString();
-            }
-            else
-            {
-                parameter.value = p.AsValueString();
-            }
-
-            if (parameterGroupMap.TryGetValue(GroupName, out ParameterGroup propertySet))
-            {
-                propertySet.Parameters.Add(parameter);
-            }
-            else
-            {
-                propertySet = new()
-                {
-                    GroupName = GroupName
-                };
-
-                propertySet.Parameters.Add(parameter);
-                parameterGroupMap.Add(GroupName, propertySet);
-            }
-        }
-
-        return parameterGroupMap.Values.ToList(); ;
-    }
-
     public static string FromFileExtension(string fileExtension)
     {
         return Path.GetExtension(fileExtension).ToLower() switch

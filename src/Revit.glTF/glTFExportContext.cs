@@ -33,7 +33,7 @@ class GltfExportContext : IExportContext
     readonly Stack<Document> _documentStack = new();
     readonly Stack<Transform> _transformStack = new();
 
-    readonly Gltf _glTF = new();
+    readonly Gltf _gltf = new();
     readonly List<BinaryData> _allBinaryDatas = new();
     readonly Dictionary<string, Material> _mapMaterial = new();
     readonly Dictionary<string, int> _mapSymbolId = new();
@@ -56,8 +56,8 @@ class GltfExportContext : IExportContext
 
         if (_settings.UseDraco)
         {
-            _glTF.extensionsRequired = new() { "KHR_draco_mesh_compression" };
-            _glTF.extensionsUsed = new() { "KHR_draco_mesh_compression" };
+            _gltf.extensionsRequired = new() { "KHR_draco_mesh_compression" };
+            _gltf.extensionsUsed = new() { "KHR_draco_mesh_compression" };
             _dracoData = new();
         }
 
@@ -66,7 +66,7 @@ class GltfExportContext : IExportContext
             nodes = new() { 0 }
         };
 
-        _glTF.scenes.Add(scene);
+        _gltf.scenes.Add(scene);
 
         Node root = new()
         {
@@ -74,7 +74,7 @@ class GltfExportContext : IExportContext
             children = new()
         };
 
-        _glTF.nodes.Add(root);
+        _gltf.nodes.Add(root);
     }
 
     public bool Start() => true;
@@ -117,26 +117,26 @@ class GltfExportContext : IExportContext
                     bufferViews[i].byteLength = size;
                 }
 
-                _glTF.bufferViews.Clear();
-                _glTF.bufferViews.AddRange(_dracoData.BufferViews);
+                _gltf.bufferViews.Clear();
+                _gltf.bufferViews.AddRange(_dracoData.BufferViews);
 
-                foreach (var accessor in _glTF.accessors)
+                foreach (var accessor in _gltf.accessors)
                 {
                     accessor.bufferView = null;
                     accessor.byteOffset = null;
                 }
 
-                if (_glTF.images is not null)
+                if (_gltf.images is not null)
                 {
-                    foreach (var image in _glTF.images)
+                    foreach (var image in _gltf.images)
                     {
-                        image.bufferView = _glTF.bufferViews.Count;
+                        image.bufferView = _gltf.bufferViews.Count;
                         var bytes = File.ReadAllBytes(image.uri);
-                        var byteOffset = _glTF.bufferViews[^1].byteLength + _glTF.bufferViews[^1].byteOffset;
+                        var byteOffset = _gltf.bufferViews[^1].byteLength + _gltf.bufferViews[^1].byteOffset;
                         var imageView = Util.CreateBufferView(0, byteOffset, bytes.Length);
                         image.uri = null;
                         writer.Write(bytes);
-                        _glTF.bufferViews.Add(imageView);
+                        _gltf.bufferViews.Add(imageView);
                     }
                 }
             }
@@ -168,14 +168,14 @@ class GltfExportContext : IExportContext
                     foreach (var uv in binData.uvBuffer)
                         writer.Write((float)uv);
                 }
-                if (_glTF.images != null)
+                if (_gltf.images != null)
                 {
-                    foreach (var image in _glTF.images)
+                    foreach (var image in _gltf.images)
                     {
-                        image.bufferView = _glTF.bufferViews.Count;
+                        image.bufferView = _gltf.bufferViews.Count;
 
                         var bytes = File.ReadAllBytes(image.uri);
-                        var byteOffset = _glTF.bufferViews[^1].byteLength + _glTF.bufferViews[^1].byteOffset;
+                        var byteOffset = _gltf.bufferViews[^1].byteLength + _gltf.bufferViews[^1].byteOffset;
                         var imageView = Util.CreateBufferView(0, byteOffset, bytes.Length);
 
                         image.uri = null;
@@ -183,7 +183,7 @@ class GltfExportContext : IExportContext
                         foreach (var b in bytes)
                             writer.Write(b);
 
-                        _glTF.bufferViews.Add(imageView);
+                        _gltf.bufferViews.Add(imageView);
                     }
                 }
             }
@@ -194,18 +194,18 @@ class GltfExportContext : IExportContext
             byteLength = 0
         };
 
-        if (_glTF.bufferViews.Count > 0)
-            newbuffer.byteLength = _glTF.bufferViews[^1].byteOffset + _glTF.bufferViews[^1].byteLength;
+        if (_gltf.bufferViews.Count > 0)
+            newbuffer.byteLength = _gltf.bufferViews[^1].byteOffset + _gltf.bufferViews[^1].byteLength;
 
-        _glTF.buffers.Add(newbuffer);
-        //AddPerspectiveCamera(_view);
+        _gltf.buffers.Add(newbuffer);
+        _settings.CustomExporter?.Mutate(_gltf);
 
-        if (!_settings.ExportAsGLB)
+        if (!_settings.ExportAsGlb)
         {
             // skip buffer
             //newbuffer.uri = ...
             //byte[] data = memoryStream.ToArray();
-            var json = _glTF.ToJson();
+            var json = _gltf.ToJson();
             Data = Encoding.UTF8.GetBytes(json);
         }
         else
@@ -224,7 +224,7 @@ class GltfExportContext : IExportContext
                 using (var streamWriter = new StreamWriter(writer.BaseStream, new UTF8Encoding(false, true), 1024, true))
                 using (var jsonTextWriter = new JsonTextWriter(streamWriter))
                 {
-                    var json = JObject.Parse(_glTF.ToJson());
+                    var json = JObject.Parse(_gltf.ToJson());
                     json.WriteTo(jsonTextWriter);
                 }
 
@@ -258,6 +258,9 @@ class GltfExportContext : IExportContext
     public RenderNodeAction OnViewBegin(ViewNode node)
     {
         node.LevelOfDetail = _settings.BoxInstances ? 0 : _settings.Quality;
+
+        if (!_settings.ExportCamera)
+            return RenderNodeAction.Proceed;
 
         // add camera
         var cameraInfo = node.GetCameraInfo();
@@ -312,9 +315,9 @@ class GltfExportContext : IExportContext
             extras = new() { { "target", target.ToFloats() } }
         };
 
-        _glTF.AddNode(cameraNode);
-        _glTF.cameras ??= new();
-        _glTF.cameras.Add(camera);
+        _gltf.AddNode(cameraNode);
+        _gltf.cameras ??= new();
+        _gltf.cameras.Add(camera);
 
         return RenderNodeAction.Proceed;
     }
@@ -378,8 +381,8 @@ class GltfExportContext : IExportContext
                 name = _elementData.Element.Name
             };
 
-            _glTF.nodes.Add(gltfNode);
-            _elementData.InstanceNodes.Add(_glTF.nodes.Count - 1);
+            _gltf.nodes.Add(gltfNode);
+            _elementData.InstanceNodes.Add(_gltf.nodes.Count - 1);
             gltfNode.matrix = CurrentTransform.ToFloats();
             gltfNode.mesh = value;
         }
@@ -443,11 +446,11 @@ class GltfExportContext : IExportContext
                 Material gl_mat = new()
                 {
                     name = materialName,
-                    index = _glTF.materials.Count,
+                    index = _gltf.materials.Count,
                     pbrMetallicRoughness = pbr
                 };
 
-                _glTF.materials.Add(gl_mat);
+                _gltf.materials.Add(gl_mat);
                 _mapMaterial.Add(materialName, gl_mat);
 
                 if (alpha != 1)
@@ -469,25 +472,25 @@ class GltfExportContext : IExportContext
                         if (!File.Exists(texturePath))
                             throw new($"Texture '{texturePath}' does not exist");
 
-                        _glTF.images ??= new();
-                        _glTF.textures ??= new();
+                        _gltf.images ??= new();
+                        _gltf.textures ??= new();
 
                         pbr.baseColorFactor = null;
 
                         BaseColorTexture bct = new()
                         {
-                            index = _glTF.textures.Count
+                            index = _gltf.textures.Count
                         };
 
                         pbr.baseColorTexture = bct;
 
                         Texture texture = new()
                         {
-                            source = _glTF.images.Count,
+                            source = _gltf.images.Count,
                             sampler = 0
                         };
 
-                        _glTF.textures.Add(texture);
+                        _gltf.textures.Add(texture);
 
                         Image image = new()
                         {
@@ -496,9 +499,9 @@ class GltfExportContext : IExportContext
                             uri = texturePath
                         };
 
-                        _glTF.images.Add(image);
+                        _gltf.images.Add(image);
 
-                        if (_glTF.samplers is null)
+                        if (_gltf.samplers is null)
                         {
                             Sampler sampler = new()
                             {
@@ -508,7 +511,7 @@ class GltfExportContext : IExportContext
                                 wrapT = 10497
                             };
 
-                            _glTF.samplers = new() { sampler };
+                            _gltf.samplers = new() { sampler };
                         }
                     }
                 }
@@ -523,7 +526,7 @@ class GltfExportContext : IExportContext
                 Material gl_mat = new()
                 {
                     name = materialName,
-                    index = _glTF.materials.Count
+                    index = _gltf.materials.Count
                 };
 
                 if (alpha != 0)
@@ -541,7 +544,7 @@ class GltfExportContext : IExportContext
                 };
 
                 gl_mat.pbrMetallicRoughness = pbr;
-                _glTF.materials.Add(gl_mat);
+                _gltf.materials.Add(gl_mat);
                 _mapMaterial.Add(materialName, gl_mat);
             }
         }
@@ -635,7 +638,7 @@ class GltfExportContext : IExportContext
                 name = e.Name
             };
 
-            _glTF.AddNode(node);
+            _gltf.AddNode(node);
 
             node.children = new List<int>();
             node.children.AddRange(instanceNodes);
@@ -644,9 +647,6 @@ class GltfExportContext : IExportContext
                 { "ElementID", e.Id.IntegerValue },
                 { "UniqueId", e.UniqueId }
             };
-
-            if (_settings.ExportParameters)
-                node.extras.Add("Parameters", Util.GetParameter(e));
         }
     }
 
@@ -655,7 +655,7 @@ class GltfExportContext : IExportContext
         if (element.MapBinaryData.Keys.Count > 0)
         {
             var e = Doc.GetElement(elementId);
-            var meshID = _glTF.meshes.Count;
+            var meshID = _gltf.meshes.Count;
             Node node = new()
             {
                 name = e.Name,
@@ -669,11 +669,11 @@ class GltfExportContext : IExportContext
 
                 node.matrix = CurrentTransform.ToFloats();
             }
-            _glTF.nodes.Add(node);
+            _gltf.nodes.Add(node);
 
             if (isInstance)
             {
-                element.InstanceNodes.Add(_glTF.nodes.Count - 1);
+                element.InstanceNodes.Add(_gltf.nodes.Count - 1);
             }
             else
             {
@@ -683,14 +683,11 @@ class GltfExportContext : IExportContext
                     { "UniqueId", e.UniqueId }
                 };
 
-                if (_settings.ExportParameters)
-                    node.extras.Add("Parameters", Util.GetParameter(e));
-
-                _glTF.nodes[0].children?.Add(_glTF.nodes.Count - 1);
+                _gltf.nodes[0].children?.Add(_gltf.nodes.Count - 1);
             }
 
             Mesh mesh = new();
-            _glTF.meshes.Add(mesh);
+            _gltf.meshes.Add(mesh);
             mesh.primitives = new();
 
             foreach (var key in element.MapBinaryData.Keys)
@@ -718,26 +715,26 @@ class GltfExportContext : IExportContext
 
                 if (bufferData.indexBuffer.Count > 0)
                 {
-                    Util.AddIndexsBufferViewAndAccessor(_glTF, bufferData);
-                    primitive.indices = _glTF.accessors.Count - 1;
+                    Util.AddIndexsBufferViewAndAccessor(_gltf, bufferData);
+                    primitive.indices = _gltf.accessors.Count - 1;
                 }
 
                 if (bufferData.vertexBuffer.Count > 0)
                 {
-                    _glTF.AddVec3BufferViewAndAccessor(bufferData);
-                    primitive.attributes.POSITION = _glTF.accessors.Count - 1;
+                    _gltf.AddVec3BufferViewAndAccessor(bufferData);
+                    primitive.attributes.POSITION = _gltf.accessors.Count - 1;
                 }
 
                 if (bufferData.normalBuffer.Count > 0)
                 {
-                    _glTF.AddNormalBufferViewAndAccessor(bufferData);
-                    primitive.attributes.NORMAL = _glTF.accessors.Count - 1;
+                    _gltf.AddNormalBufferViewAndAccessor(bufferData);
+                    primitive.attributes.NORMAL = _gltf.accessors.Count - 1;
                 }
 
                 if (bufferData.uvBuffer.Count > 0)
                 {
-                    _glTF.AddUvBufferViewAndAccessor(bufferData);
-                    primitive.attributes.TEXCOORD_0 = _glTF.accessors.Count - 1;
+                    _gltf.AddUvBufferViewAndAccessor(bufferData);
+                    primitive.attributes.TEXCOORD_0 = _gltf.accessors.Count - 1;
                 }
 
                 if (_dracoData is not null)

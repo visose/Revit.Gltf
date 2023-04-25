@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace RevitGltf;
 
-class Gltf
+public class Gltf
 {
     public Version asset { get; } = new();
     public List<Scene> scenes { get; } = new();
@@ -31,7 +31,7 @@ class Gltf
     }
 }
 
-class Glb
+public class Glb
 {
     public const uint Magic = 0x46546C67;
     public const uint Version = 2;
@@ -41,20 +41,20 @@ class Glb
     public const uint ChunkFormatBin = 0x004E4942;
 }
 
-class Version
+public class Version
 {
-    public readonly string generator = "Exported using: https://github.com/visose/Revit.Gltf";
+    public string generator = "Exported using: https://github.com/visose/Revit.Gltf";
     public readonly string version = "2.0";
     public Dictionary<string, object>? extras { get; set; }
     public Dictionary<string, object>? extensions { get; set; }
 }
 
-class Scene
+public class Scene
 {
     public List<int> nodes = new();
 }
 
-class Node
+public class Node
 {
     public string? name { get; set; }
     public int? mesh { get; set; }
@@ -67,24 +67,12 @@ class Node
     public Dictionary<string, object>? extras { get; set; }
 }
 
-class ParameterGroup
-{
-    public string? GroupName { get; set; }
-    public List<Parameter> Parameters { get; set; } = new();
-}
-
-class Parameter
-{
-    public string? value { get; set; }
-    public string? name { get; set; }
-}
-
-class Mesh
+public class Mesh
 {
     public List<MeshPrimitive>? primitives { get; set; }
 }
 
-class MeshPrimitive
+public class MeshPrimitive
 {
     public Attribute attributes { get; set; } = new();
     public int indices { get; set; }
@@ -93,7 +81,7 @@ class MeshPrimitive
     public PrimitiveExtensions? extensions { get; set; }
 }
 
-enum ModeEnum
+public enum ModeEnum
 {
     POINTS = 0,
     LINES = 1,
@@ -104,7 +92,7 @@ enum ModeEnum
     TRIANGLE_FAN = 6
 }
 
-class Attribute
+public class Attribute
 {
     public int? POSITION { get; set; }
     public int? NORMAL { get; set; }
@@ -112,25 +100,25 @@ class Attribute
     public int? _BATCHID { get; set; }
 }
 
-class PrimitiveExtensions
+public class PrimitiveExtensions
 {
     public DracoMesh KHR_draco_mesh_compression { get; set; } = new();
 }
 
-class DracoMesh
+public class DracoMesh
 {
     public int? bufferView { get; set; }
     public Attribute attributes { get; set; } = new();
 }
 
-class Buffer
+public class Buffer
 {
     public string? uri { get; set; }
     public int byteLength { get; set; }
 }
 
 [JsonObject(MemberSerialization.OptOut)]
-class BufferView
+public class BufferView
 {
     public string? name { get; set; }
     public int buffer { get; set; }
@@ -143,13 +131,13 @@ class BufferView
     public string? Base64 { get; set; }
 }
 
-enum Targets
+public enum Targets
 {
-    ARRAY_BUFFER = 34962, // 代表顶点数据
-    ELEMENT_ARRAY_BUFFER = 34963 // 代表顶点索引数据
+    ARRAY_BUFFER = 34962, // Represents vertex data
+    ELEMENT_ARRAY_BUFFER = 34963 // Represents vertex index data
 }
 
-class Accessor
+public class Accessor
 {
     public string? name { get; set; }
     public int? bufferView { get; set; }
@@ -161,14 +149,14 @@ class Accessor
     public IList<float>? min { get; set; }
 }
 
-class AccessorType
+public class AccessorType
 {
     public const string VEC3 = "VEC3";
     public const string VEC2 = "VEC2";
     public const string SCALAR = "SCALAR";
 }
 
-enum ComponentType
+public enum ComponentType
 {
     BYTE = 5120,
     UNSIGNED_BYTE = 5121,
@@ -178,7 +166,7 @@ enum ComponentType
     FLOAT = 5126
 }
 
-class Material
+public class Material
 {
     public string? name { get; set; }
     public Pbr? pbrMetallicRoughness { get; set; }
@@ -189,7 +177,7 @@ class Material
     public int index { get; set; }
 }
 
-class Pbr
+public class Pbr
 {
     public BaseColorTexture? baseColorTexture { get; set; }
     public List<float>? baseColorFactor { get; set; }
@@ -199,18 +187,18 @@ class Pbr
     public float? roughnessFactor { get; set; }
 }
 
-class BaseColorTexture
+public class BaseColorTexture
 {
     public int? index { get; set; }
 }
 
-class Texture
+public class Texture
 {
     public int? source { get; set; }
     public int? sampler { get; set; }
 }
 
-class Image
+public class Image
 {
 
     public string? uri { get; set; }
@@ -222,7 +210,7 @@ class Image
     public string? name { get; set; }
 }
 
-class Sampler
+public class Sampler
 {
     public float magFilter { get; set; }
     public float minFilter { get; set; }
@@ -230,20 +218,20 @@ class Sampler
     public float wrapT { get; set; }
 }
 
-class Camera
+public class Camera
 {
     public string? type { get; set; }
     public PerspectiveCamera? perspective { get; set; }
     public OrthographicCamera? orthographic { get; set; }
 }
 
-class CameraType
+public class CameraType
 {
     public const string perspective = "perspective";
     public const string orthographic = "orthographic";
 }
 
-class PerspectiveCamera
+public class PerspectiveCamera
 {
     public float aspectRatio { get; set; }
     public float yfov { get; set; }
@@ -251,7 +239,7 @@ class PerspectiveCamera
     public float znear { get; set; }
 }
 
-class OrthographicCamera
+public class OrthographicCamera
 {
     public float xmag { get; set; }
     public float ymag { get; set; }
@@ -259,7 +247,7 @@ class OrthographicCamera
     public float znear { get; set; }
 }
 
-class BinaryData
+public class BinaryData
 {
     public List<float> vertexBuffer { get; set; } = new();
     public List<float> normalBuffer { get; set; } = new();

@@ -13,7 +13,7 @@
 
   <PropertyGroup Condition="$(Configuration) == 'Release'">
     <PackageId>Revit.glTF</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>cowboy1997; others</Authors>
     <Description>Export glTF and glb from Revit</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
