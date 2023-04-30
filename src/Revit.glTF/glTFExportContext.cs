@@ -332,9 +332,24 @@ class GltfExportContext : IExportContext
             return RenderNodeAction.Skip;
         }
 
+        var categories = new[]
+        {
+            BuiltInCategory.OST_Grids,
+            BuiltInCategory.OST_Levels,
+            BuiltInCategory.OST_Cameras
+        };
+
+        var element = Doc.GetElement(elementId);
+
+        if (categories.Any(c => element.Category.BuiltInCategory == c))
+        {
+            _elementData = null;
+            return RenderNodeAction.Skip;
+        }
+
         _elementData = new()
         {
-            Element = Doc.GetElement(elementId),
+            Element = element,
             MaterialName = null,
             SymbolId = null
         };
@@ -423,129 +438,106 @@ class GltfExportContext : IExportContext
         if (_elementData is null)
             return;
 
-        float alpha = 1 - (float)Math.Round(node.Transparency, 2);
+        var alpha = 1.0f - (float)node.Transparency;
         var color = node.Color;
-        ElementId id = node.MaterialId;
+        var id = node.MaterialId;
+
+        bool hasMaterial = id != ElementId.InvalidElementId;
         string materialName;
 
-        if (id != ElementId.InvalidElementId)
+        if (hasMaterial)
         {
             Element material = Doc.GetElement(id);
             materialName = material.Name;
-
-            if (!_mapMaterial.ContainsKey(material.Name))
-            {
-                Pbr pbr = new()
-                {
-                    metallicFactor = 0f,
-                    //roughnessFactor = 1 - node.Smoothness / 100;
-                    roughnessFactor = 1f,
-                    baseColorFactor = color is null ? null : new() { color.Red / 255f, color.Green / 255f, color.Blue / 255f, alpha }
-                };
-
-                Material gl_mat = new()
-                {
-                    name = materialName,
-                    index = _gltf.materials.Count,
-                    pbrMetallicRoughness = pbr
-                };
-
-                _gltf.materials.Add(gl_mat);
-                _mapMaterial.Add(materialName, gl_mat);
-
-                if (alpha != 1)
-                {
-                    gl_mat.alphaMode = "BLEND";
-                    gl_mat.doubleSided = true;
-                }
-
-                if (_settings.ExportTextures)
-                {
-                    Asset currentAsset = node.HasOverriddenAppearance ? node.GetAppearanceOverride() : node.GetAppearance();
-                    var assetPropertyString = Util.ReadAssetProperty(currentAsset);
-
-                    if (assetPropertyString is not null)
-                    {
-                        string textureFile = assetPropertyString.Split('|')[0];
-                        var texturePath = Path.Combine(_texturesFolder, textureFile.Replace("/", "\\"));
-
-                        if (!File.Exists(texturePath))
-                            throw new($"Texture '{texturePath}' does not exist");
-
-                        _gltf.images ??= new();
-                        _gltf.textures ??= new();
-
-                        pbr.baseColorFactor = null;
-
-                        BaseColorTexture bct = new()
-                        {
-                            index = _gltf.textures.Count
-                        };
-
-                        pbr.baseColorTexture = bct;
-
-                        Texture texture = new()
-                        {
-                            source = _gltf.images.Count,
-                            sampler = 0
-                        };
-
-                        _gltf.textures.Add(texture);
-
-                        Image image = new()
-                        {
-                            name = Path.GetFileNameWithoutExtension(texturePath),
-                            mimeType = Util.FromFileExtension(texturePath),
-                            uri = texturePath
-                        };
-
-                        _gltf.images.Add(image);
-
-                        if (_gltf.samplers is null)
-                        {
-                            Sampler sampler = new()
-                            {
-                                magFilter = 9729,
-                                minFilter = 9987,
-                                wrapS = 10497,
-                                wrapT = 10497
-                            };
-
-                            _gltf.samplers = new() { sampler };
-                        }
-                    }
-                }
-            }
         }
         else
         {
-            materialName = string.Format("r{0}g{1}b{2}a{3}", color.Red.ToString(), color.Green.ToString(), color.Blue.ToString(), alpha);
+            var alphaByte = (byte)(alpha * 255);
+            materialName = $"Basic {color.Red}-{color.Green}-{color.Blue}-{alphaByte}";
+        }
 
-            if (!_mapMaterial.ContainsKey(materialName))
+        materialName = _settings.CustomExporter?.SetMaterialName(node) ?? materialName;
+
+        if (!_mapMaterial.ContainsKey(materialName))
+        {
+            Pbr pbr = new()
             {
-                Material gl_mat = new()
-                {
-                    name = materialName,
-                    index = _gltf.materials.Count
-                };
+                metallicFactor = 0f,
+                roughnessFactor = 1f,
+                baseColorFactor = color is null ? null : new() { color.Red / 255f, color.Green / 255f, color.Blue / 255f, alpha }
+            };
 
-                if (alpha != 0)
+            Material gl_mat = new()
+            {
+                name = materialName,
+                index = _gltf.materials.Count,
+                pbrMetallicRoughness = pbr
+            };
+
+            if (alpha != 1)
+            {
+                gl_mat.alphaMode = "BLEND";
+                gl_mat.doubleSided = true;
+            }
+
+            _gltf.materials.Add(gl_mat);
+            _mapMaterial.Add(materialName, gl_mat);
+
+            if (hasMaterial && _settings.ExportTextures)
+            {
+                Asset currentAsset = node.HasOverriddenAppearance ? node.GetAppearanceOverride() : node.GetAppearance();
+                var assetPropertyString = Util.ReadAssetProperty(currentAsset);
+
+                if (assetPropertyString is not null)
                 {
-                    gl_mat.alphaMode = "BLEND";
-                    gl_mat.doubleSided = true;
-                    alpha = 1 - alpha;
+                    string textureFile = assetPropertyString.Split('|')[0];
+                    var texturePath = Path.Combine(_texturesFolder, textureFile.Replace("/", "\\"));
+
+                    if (!File.Exists(texturePath))
+                        throw new($"Texture '{texturePath}' does not exist");
+
+                    _gltf.images ??= new();
+                    _gltf.textures ??= new();
+
+                    pbr.baseColorFactor = null;
+
+                    BaseColorTexture bct = new()
+                    {
+                        index = _gltf.textures.Count
+                    };
+
+                    pbr.baseColorTexture = bct;
+
+                    Texture texture = new()
+                    {
+                        source = _gltf.images.Count,
+                        sampler = 0
+                    };
+
+                    _gltf.textures.Add(texture);
+
+                    Image image = new()
+                    {
+                        name = Path.GetFileNameWithoutExtension(texturePath),
+                        mimeType = Util.FromFileExtension(texturePath),
+                        uri = texturePath
+                    };
+
+                    _gltf.images.Add(image);
+
+                    if (_gltf.samplers is null)
+                    {
+                        Sampler sampler = new()
+                        {
+                            magFilter = 9729,
+                            minFilter = 9987,
+                            wrapS = 10497,
+                            wrapT = 10497
+                        };
+
+                        _gltf.samplers = new() { sampler };
+                    }
                 }
-
-                Pbr pbr = new()
-                {
-                    baseColorFactor = new() { node.Color.Red / 255f, node.Color.Green / 255f, node.Color.Blue / 255f, alpha },
-                    metallicFactor = 0f,
-                    roughnessFactor = 1f
-                };
-
-                gl_mat.pbrMetallicRoughness = pbr;
-                _gltf.materials.Add(gl_mat);
-                _mapMaterial.Add(materialName, gl_mat);
             }
         }
 

@@ -17,4 +17,5 @@ public class Settings
 public interface ICustomExporter
 {
     void Mutate(Gltf gltf);
+    string? SetMaterialName(MaterialNode node);
 }
