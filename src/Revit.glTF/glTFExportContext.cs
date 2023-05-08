@@ -556,6 +556,8 @@ class GltfExportContext : IExportContext
         if (_elementData.MaterialName is null)
             throw new("Current material is null");
 
+        bool isCeiling = _elementData.Element.Category.BuiltInCategory == BuiltInCategory.OST_Ceilings;
+
         var mapBinaryData = _elementData.MapBinaryData;
         var materialName = _elementData.MaterialName;
 
@@ -591,6 +593,10 @@ class GltfExportContext : IExportContext
             var index1 = facet.V1 + index;
             var index2 = facet.V2 + index;
             var index3 = facet.V3 + index;
+
+            if (isCeiling)
+                (index1, index2) = (index2, index1);
+
             indexBuffer.Add(index1);
             indexBuffer.Add(index2);
             indexBuffer.Add(index3);
