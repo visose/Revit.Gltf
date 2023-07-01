@@ -334,14 +334,15 @@ class GltfExportContext : IExportContext
 
         var categories = new[]
         {
-            BuiltInCategory.OST_Grids,
-            BuiltInCategory.OST_Levels,
-            BuiltInCategory.OST_Cameras
+            "Grids",
+            "Levels",
+            "Cameras"
         };
 
         var element = Doc.GetElement(elementId);
+        var categoryName = element.Category.Name;
 
-        if (categories.Any(c => element.Category.BuiltInCategory == c))
+        if (categories.Any(c => c == categoryName))
         {
             _elementData = null;
             return RenderNodeAction.Skip;
@@ -371,8 +372,8 @@ class GltfExportContext : IExportContext
             return RenderNodeAction.Skip;
 
         _transformStack.Push(CurrentTransform.Multiply(node.GetTransform()));
-        ElementId symId = node.GetSymbolGeometryId().SymbolId;
-        Element symElem = Doc.GetElement(symId);
+        ElementId symbolId = Util.GetNodeSymbolId(node);
+        Element symElem = Doc.GetElement(symbolId);
         _elementData.SymbolId = symElem.UniqueId;
 
         if (_mapSymbolId.ContainsKey(symElem.UniqueId))
@@ -386,7 +387,7 @@ class GltfExportContext : IExportContext
         if (_elementData is null)
             return;
 
-        ElementId symbolId = node.GetSymbolGeometryId().SymbolId;
+        ElementId symbolId = Util.GetNodeSymbolId(node);
         Element symbol = Doc.GetElement(symbolId);
 
         if (_mapSymbolId.TryGetValue(symbol.UniqueId, out int value))
@@ -556,7 +557,7 @@ class GltfExportContext : IExportContext
         if (_elementData.MaterialName is null)
             throw new("Current material is null");
 
-        bool isCeiling = _elementData.Element.Category.BuiltInCategory == BuiltInCategory.OST_Ceilings;
+        bool isCeiling = _elementData.Element.Category.Name == "Ceilings";
 
         var mapBinaryData = _elementData.MapBinaryData;
         var materialName = _elementData.MaterialName;

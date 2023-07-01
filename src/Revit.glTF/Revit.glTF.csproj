@@ -8,12 +8,12 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <Platforms>x64</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RevitVersion>2023</RevitVersion>
+    <RevitVersion>2021</RevitVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(Configuration) == 'Release'">
     <PackageId>Revit.glTF</PackageId>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
     <Authors>cowboy1997; others</Authors>
     <Description>Export glTF and glb from Revit</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -22,13 +22,14 @@
 
   <ItemGroup>
     <Using Remove="System.Net.Http" />
+    <Reference Include="Microsoft.CSharp" />
     <PackageReference Include="Revit.RevitApi.x64" Version="$(RevitVersion).0.0" ExcludeAssets="runtime" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" ExcludeAssets="runtime" />
     <PackageReference Include="PolySharp" Version="1.13.1" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\lib\DracoNet.dll" Link="DracoNet.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="lib\net48\DracoNet.dll"/>
+    <None Include="..\..\lib\DracoNet.dll" Link="DracoNet.dll" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="lib\net48\DracoNet.dll" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Visual;
 
@@ -6,6 +7,28 @@ namespace RevitGltf;
 static class Util
 {
     const float _scale = 0.3048f;
+    static readonly bool _isRevit2024OrHigher;
+
+    static Util()
+    {
+        var type = typeof(InstanceNode);
+        var method = type.GetMethod("GetSymbolId", BindingFlags.Instance | BindingFlags.Public);
+        _isRevit2024OrHigher = method is null;
+    }
+
+    public static ElementId GetNodeSymbolId(InstanceNode node)
+    {
+        ElementId symbolId = _isRevit2024OrHigher
+            ? ((dynamic)node).GetSymbolGeometryId().SymbolId
+            : ObsoleteGetSymbolId(node);
+
+        return symbolId;
+    }
+
+    static ElementId ObsoleteGetSymbolId(InstanceNode node)
+    {
+        return node.GetSymbolId();
+    }
 
     public static void CreateBox(IList<float> points, out float[] vertices, out int[] faces)
     {
