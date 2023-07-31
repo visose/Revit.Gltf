@@ -488,15 +488,22 @@ class GltfExportContext : IExportContext
             {
                 Asset currentAsset = node.HasOverriddenAppearance ? node.GetAppearanceOverride() : node.GetAppearance();
                 var assetPropertyString = Util.ReadAssetProperty(currentAsset);
+                string? texturePath = null;
 
                 if (assetPropertyString is not null)
                 {
                     string textureFile = assetPropertyString.Split('|')[0];
-                    var texturePath = Path.Combine(_texturesFolder, textureFile.Replace("/", "\\"));
+                    texturePath = Path.Combine(_texturesFolder, textureFile.Replace("/", "\\"));
 
                     if (!File.Exists(texturePath))
-                        throw new($"Texture '{texturePath}' does not exist");
+                        texturePath = null;
 
+                    //TODO: Add as warning
+                    //throw new($"Texture '{texturePath}' does not exist");
+                }
+
+                if (texturePath is not null)
+                {
                     _gltf.images ??= new();
                     _gltf.textures ??= new();
 
